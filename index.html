@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meta Quest Browser Test Page</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 2em;
+    }
+    a {
+      color: blue;
+    }
+  </style>
+</head>
+<body>
+  <h1>Meta Quest Browser Test Page</h1>
+
+  <p><strong>Select a file:</strong> <input type="file"></p>
+
+  <p>
+    <a href="intent://example#Intent;scheme=https;package=com.oculus.browser;end">intent:// example link</a><br>
+    <a href="tel:1234567890">tel:1234567890 link</a><br>
+    <a href="sms:1234567890">sms:1234567890 link</a>
+  </p>
+
+  <p><strong>Try accessing a WebXR session:</strong></p>
+  <p><a href="#" id="enterVR">Enter VR</a></p>
+
+  <p><strong>Browser fingerprint:</strong><br>
+    <span id="fingerprint"></span>
+  </p>
+
+  <script>
+    // Print user-agent
+    document.getElementById("fingerprint").textContent = navigator.userAgent;
+
+    // Try requesting WebXR session
+    document.getElementById("enterVR").onclick = async function(e) {
+      e.preventDefault();
+      if (navigator.xr) {
+        try {
+          const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
+          if (isSupported) {
+            const session = await navigator.xr.requestSession('immersive-vr');
+            alert("WebXR session started!");
+            session.end();
+          } else {
+            alert("WebXR not supported or not available.");
+          }
+        } catch (err) {
+          alert("WebXR error: " + err);
+        }
+      } else {
+        alert("navigator.xr not available.");
+      }
+    };
+  </script>
+</body>
+</html>
