@@ -2,63 +2,128 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Meta Quest Browser Test Page</title>
+  <title>Meta Quest Cross-Account Test Suite</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 2em;
-      line-height: 1.6;
-    }
-    h1 {
-      font-size: 2em;
-    }
-    a {
-      color: blue;
-    }
+    body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+    h1, h2 { color: #111; }
+    code { background: #eee; padding: 0.2em 0.4em; }
+    .section { margin-bottom: 2rem; }
+    .log { white-space: pre-wrap; font-size: 0.9em; background: #f0f0f0; padding: 1em; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h1>Meta Quest Browser Test Page</h1>
+  <h1>Meta Quest 3 Cross-Account Test Suite</h1>
 
-  <p><strong>Select a file:</strong> <input type="file"></p>
+  <div class="section">
+    <h2>1. Storage Tests (localStorage & IndexedDB)</h2>
+    <button onclick="runStorageTests()">Run Storage Test</button>
+    <div class="log" id="storageLog"></div>
+  </div>
 
-  <p>
-    <a href="intent://example#Intent;scheme=https;package=com.oculus.browser;end">intent:// example link</a><br>
-    <a href="tel:1234567890">tel:1234567890 link</a><br>
-    <a href="sms:1234567890">sms:1234567890 link</a>
-  </p>
+  <div class="section">
+    <h2>2. Service Worker Registration</h2>
+    <button onclick="registerSW()">Register Service Worker</button>
+    <div class="log" id="swLog"></div>
+  </div>
 
-  <p><strong>Try accessing a WebXR session:</strong></p>
-  <p><a href="#" id="enterVR">Enter VR</a></p>
+  <div class="section">
+    <h2>3. WebXR Session Request</h2>
+    <button onclick="requestXR()">Try XR Session</button>
+    <div class="log" id="xrLog"></div>
+  </div>
 
-  <p><strong>Browser fingerprint:</strong><br>
-    <span id="fingerprint"></span>
-  </p>
+  <div class="section">
+    <h2>4. getUserMedia (Microphone)</h2>
+    <button onclick="requestMic()">Request Microphone</button>
+    <div class="log" id="mediaLog"></div>
+  </div>
+
+  <div class="section">
+    <h2>5. Intent-Based Link Tests</h2>
+    <p>
+      <a href="intent://test.com#Intent;scheme=https;package=com.oculus.browser;end">intent://test.com</a><br>
+      <a href="tel:1234567890">tel:1234567890</a><br>
+      <a href="sms:1234567890">sms:1234567890</a>
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>6. File Picker Test</h2>
+    <input type="file" />
+  </div>
+
+  <div class="section">
+    <h2>7. Browser Info / Fingerprint</h2>
+    <div class="log" id="uaLog"></div>
+  </div>
 
   <script>
-    // Print user-agent
-    document.getElementById("fingerprint").textContent = navigator.userAgent;
+    // 1. Storage Test
+    function runStorageTests() {
+      const storageLog = document.getElementById("storageLog");
+      localStorage.setItem("crossAccountTest", "AccountA");
+      storageLog.textContent = "localStorage set: crossAccountTest = AccountA";
 
-    // Try requesting WebXR session
-    document.getElementById("enterVR").onclick = async function(e) {
-      e.preventDefault();
-      if (navigator.xr) {
+      let dbRequest = indexedDB.open("crossAccountDB", 1);
+      dbRequest.onupgradeneeded = function(event) {
+        let db = event.target.result;
+        db.createObjectStore("tokens", { keyPath: "id" });
+      };
+      dbRequest.onsuccess = function(event) {
+        let db = event.target.result;
+        let tx = db.transaction("tokens", "readwrite");
+        let store = tx.objectStore("tokens");
+        store.put({ id: "mainToken", value: "fromAccountA" });
+        storageLog.textContent += "\nIndexedDB: token written.";
+      };
+    }
+
+    // 2. Service Worker Registration
+    async function registerSW() {
+      const swLog = document.getElementById("swLog");
+      if ("serviceWorker" in navigator) {
         try {
-          const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
-          if (isSupported) {
-            const session = await navigator.xr.requestSession('immersive-vr');
-            alert("WebXR session started!");
-            session.end();
-          } else {
-            alert("WebXR not supported or not available.");
-          }
+          const reg = await navigator.serviceWorker.register("sw.js");
+          swLog.textContent = "Service Worker registered: " + reg.scope;
         } catch (err) {
-          alert("WebXR error: " + err);
+          swLog.textContent = "Service Worker registration failed: " + err;
         }
       } else {
-        alert("navigator.xr not available.");
+        swLog.textContent = "Service Workers not supported.";
       }
-    };
+    }
+
+    // 3. WebXR Test
+    async function requestXR() {
+      const xrLog = document.getElementById("xrLog");
+      if (navigator.xr) {
+        try {
+          const supported = await navigator.xr.isSessionSupported("immersive-vr");
+          if (!supported) return xrLog.textContent = "immersive-vr not supported.";
+          const session = await navigator.xr.requestSession("immersive-vr");
+          xrLog.textContent = "XR session started.";
+          session.end();
+        } catch (err) {
+          xrLog.textContent = "XR request failed: " + err;
+        }
+      } else {
+        xrLog.textContent = "WebXR not supported.";
+      }
+    }
+
+    // 4. Media Access
+    async function requestMic() {
+      const mediaLog = document.getElementById("mediaLog");
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaLog.textContent = "Microphone access granted.";
+      } catch (err) {
+        mediaLog.textContent = "Microphone access denied: " + err;
+      }
+    }
+
+    // 7. User Agent Fingerprint
+    document.getElementById("uaLog").textContent = navigator.userAgent;
   </script>
 </body>
 </html>
